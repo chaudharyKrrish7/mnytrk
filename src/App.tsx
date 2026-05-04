@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // --- TypeScript Interfaces ---
 interface Transaction {
@@ -23,15 +23,46 @@ interface Budgets {
   [key: string]: number;
 }
 
+// Default data for the very first time the app is opened
+const defaultTransactions: Transaction[] = [
+  { id: 1, date: '2026-05-01', description: 'Allowance', category: 'Income', type: 'in', amount: 13000 },
+  { id: 2, date: '2026-05-02', description: 'Conditioner, Sunscreen', category: 'Personal', type: 'out', amount: 492 },
+  { id: 3, date: '2026-05-03', description: 'Thali', category: 'Food', type: 'out', amount: 290 },
+  { id: 4, date: '2026-05-04', description: 'Rapido', category: 'Travel', type: 'out', amount: 62 },
+  { id: 5, date: '2026-05-05', description: 'Emergency Fund', category: 'Savings', type: 'out', amount: 2000 },
+];
+
+const defaultBudgets: Budgets = {
+  Food: 3000,
+  Travel: 1500,
+  Personal: 2000,
+  Savings: 5000,
+};
+
 export default function App() {
-  // --- State Management ---
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: 1, date: '2026-05-01', description: 'Allowance', category: 'Income', type: 'in', amount: 13000 },
-    { id: 2, date: '2026-05-02', description: 'Conditioner, Sunscreen', category: 'Personal', type: 'out', amount: 492 },
-    { id: 3, date: '2026-05-03', description: 'Thali', category: 'Food', type: 'out', amount: 290 },
-    { id: 4, date: '2026-05-04', description: 'Rapido', category: 'Travel', type: 'out', amount: 62 },
-    { id: 5, date: '2026-05-05', description: 'Emergency Fund', category: 'Savings', type: 'out', amount: 2000 },
-  ]);
+  // --- State Management with LocalStorage ---
+  
+  // 1. Initialize Transactions from LocalStorage
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('financeTracker_transactions');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    }
+    return defaultTransactions;
+  });
+
+  // 2. Initialize Budgets from LocalStorage
+  const [budgets, setBudgets] = useState<Budgets>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('financeTracker_budgets');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    }
+    return defaultBudgets;
+  });
 
   const [formData, setFormData] = useState<FormData>({
     date: new Date().toISOString().split('T')[0],
@@ -41,14 +72,19 @@ export default function App() {
     amount: ''
   });
 
-  const [budgets, setBudgets] = useState<Budgets>({
-    Food: 3000,
-    Travel: 1500,
-    Personal: 2000,
-    Savings: 5000,
-  });
-
   const expenseCategories = ['Savings', 'Food', 'Travel', 'Personal'];
+
+  // --- Auto-Save to LocalStorage ---
+  
+  // Save transactions whenever they change
+  useEffect(() => {
+    localStorage.setItem('financeTracker_transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  // Save budgets whenever they change
+  useEffect(() => {
+    localStorage.setItem('financeTracker_budgets', JSON.stringify(budgets));
+  }, [budgets]);
 
   // --- Calculations ---
   const totalIncome = transactions.filter(t => t.type === 'in').reduce((sum, t) => sum + t.amount, 0);
@@ -94,7 +130,7 @@ export default function App() {
 
   const handleClearAll = () => {
     if (window.confirm("Are you sure you want to delete ALL transactions? This cannot be undone.")) {
-      setTransactions([]);
+      setTransactions([]); // The useEffect will automatically clear LocalStorage too!
     }
   };
 
